@@ -1,45 +1,105 @@
+using System;
 using System.Collections.Generic;
-using NTierTodoApp.DataAccess;
-using NTierTodoApp.Models;
+using TaskManagementSystem.Core.Interfaces;
+using TaskManagementSystem.Core.Models;
 
-namespace NTierTodoApp.Business
+namespace TaskManagementSystem.Business.Services
 {
-    /// <summary>
-    /// طبقة المنطق التجاري لإدارة المهام.
-    /// </summary>
-    public class TaskService
+    public class TaskService : ITaskService
     {
-        private readonly TaskRepository repository;
+        private readonly ITaskRepository _taskRepository;
 
-        public TaskService(TaskRepository repo)
+        public TaskService(ITaskRepository taskRepository)
         {
-            repository = repo;
+            _taskRepository = taskRepository ?? throw new ArgumentNullException(nameof(taskRepository));
         }
 
-        public List<TaskItem> GetTasks() => repository.GetAll();
-
-        public void AddTask(string title)
+        public IEnumerable<Task> GetAllTasks()
         {
-            if (string.IsNullOrWhiteSpace(title))
-                return;
-
-            var tasks = repository.GetAll();
-            int newId = tasks.Any() ? tasks.Max(t => t.Id) + 1 : 1;
-            var newTask = new TaskItem { Id = newId, Title = title, IsComplete = false };
-            repository.Add(newTask);
+            return _taskRepository.GetAllTasks();
         }
 
-        public void CompleteTask(int id)
+        public Task GetTaskById(int id)
         {
-            var task = repository.GetById(id);
-            if (task != null)
-                task.IsComplete = true;
+            if (id <= 0)
+                throw new ArgumentException("Invalid task ID", nameof(id));
+
+            var task = _taskRepository.GetTaskById(id);
+            
+            if (task == null)
+                throw new KeyNotFoundException($"Task with ID {id} not found");
+
+            return task;
         }
 
-        // TODO: تنفيذ دالة حذف المهمة
-        public void DeleteTask(int id)
+        public void AddTask(Task task)
         {
-            // TODO: استدعاء دالة الحذف في طبقة DataAccess
+            if (task == null)
+                throw new ArgumentNullException(nameof(task));
+
+            if (string.IsNullOrWhiteSpace(task.Title))
+                throw new ArgumentException("Task title is required", nameof(task.Title));
+
+            if (task.DueDate < DateTime.Today)
+                throw new ArgumentException("Due date cannot be in the past", nameof(task.DueDate));
+
+            _taskRepository.AddTask(task);
+        }
+
+        public void UpdateTask(Task task)
+        {
+            if (task == null)
+                throw new ArgumentNullException(nameof(task));
+
+            if (task.Id <= 0)
+                throw new ArgumentException("Invalid task ID", nameof(task.Id));
+
+            if (string.IsNullOrWhiteSpace(task.Title))
+                throw new ArgumentException("Task title is required", nameof(task.Title));
+
+            if (task.DueDate < DateTime.Today)
+                throw new ArgumentException("Due date cannot be in the past", nameof(task.DueDate));
+
+            var existingTask = _taskRepository.GetTaskById(task.Id);
+            if (existingTask == null)
+                throw new KeyNotFoundException($"Task with ID {task.Id} not found");
+
+            _taskRepository.UpdateTask(task);
+        }
+
+        public void DeleteTask(int taskId)
+        {
+            if (taskId <= 0)
+                throw new ArgumentException("Invalid task ID", nameof(taskId));
+
+            var taskToDelete = _taskRepository.GetTaskById(taskId);
+            if (taskToDelete == null)
+                throw new KeyNotFoundException($"Task with ID {taskId} not found");
+
+            _taskRepository.DeleteTask(taskId);
+        }
+
+        public IEnumerable<Task> GetTasksDueBefore(DateTime date)
+        {
+            return _taskRepository.GetTasksDueBefore(date);
+        }
+
+        public IEnumerable<Task> GetCompletedTasks()
+        {
+            return _taskRepository.GetCompletedTasks();
+        }
+
+        public void MarkTaskAsCompleted(int taskId)
+        {
+            if (taskId <= 0)
+                throw new ArgumentException("Invalid task ID", nameof(taskId));
+
+            var task = _taskRepository.GetTaskById(taskId);
+            if (task == null)
+                throw new KeyNotFoundException($"Task with ID {taskId} not found");
+
+            task.IsCompleted = true;
+            _taskRepository.UpdateTask(task);
         }
     }
 }
