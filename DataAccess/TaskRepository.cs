@@ -1,38 +1,75 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using NTierTodoApp.Models;
+using TaskManagementSystem.Core.Models;
 
-namespace NTierTodoApp.DataAccess
+namespace TaskManagementSystem.DataAccess.Repositories
 {
-    /// <summary>
-    /// مستودع البيانات لإدارة المهام باستخدام قائمة في الذاكرة.
-    /// </summary>
-    public class TaskRepository
+    public class TaskRepository : ITaskRepository
     {
-        private List<TaskItem> tasks = new List<TaskItem>
-        {
-            new TaskItem { Id = 1, Title = "مهمة أولى", IsComplete = false },
-            new TaskItem { Id = 2, Title = "مهمة ثانية", IsComplete = false }
-        };
+        private readonly List<Task> _tasks;
+        private int _nextId = 1;
 
-        public List<TaskItem> GetAll() => tasks;
-
-        public void Add(TaskItem task)
+        public TaskRepository()
         {
-            tasks.Add(task);
+            _tasks = new List<Task>();
+            
+            // Initialize with some sample data (optional)
+            AddTask(new Task { Title = "Sample Task 1", Description = "Description 1", DueDate = DateTime.Now.AddDays(7) });
+            AddTask(new Task { Title = "Sample Task 2", Description = "Description 2", DueDate = DateTime.Now.AddDays(14) });
         }
 
-        public TaskItem GetById(int id)
+        public IEnumerable<Task> GetAllTasks()
         {
-            return tasks.FirstOrDefault(t => t.Id == id);
+            return _tasks.OrderBy(t => t.DueDate).ToList();
         }
 
-        // TODO: تنفيذ دالة حذف المهمة
-        public void Delete(int id)
+        public Task GetTaskById(int id)
         {
-            // TODO: ابحث عن المهمة باستخدام id
+            return _tasks.FirstOrDefault(t => t.Id == id);
+        }
 
-            // TODO: إذا كانت المهمة موجودة، قم بإزالتها من القائمة
+        public void AddTask(Task task)
+        {
+            if (task == null)
+                throw new ArgumentNullException(nameof(task));
+
+            task.Id = _nextId++;
+            _tasks.Add(task);
+        }
+
+        public void UpdateTask(Task updatedTask)
+        {
+            if (updatedTask == null)
+                throw new ArgumentNullException(nameof(updatedTask));
+
+            var existingTask = _tasks.FirstOrDefault(t => t.Id == updatedTask.Id);
+            if (existingTask == null)
+                throw new KeyNotFoundException($"Task with ID {updatedTask.Id} not found");
+
+            existingTask.Title = updatedTask.Title;
+            existingTask.Description = updatedTask.Description;
+            existingTask.DueDate = updatedTask.DueDate;
+            existingTask.IsCompleted = updatedTask.IsCompleted;
+        }
+
+        public void DeleteTask(int taskId)
+        {
+            var taskToDelete = _tasks.FirstOrDefault(t => t.Id == taskId);
+            if (taskToDelete == null)
+                throw new KeyNotFoundException($"Task with ID {taskId} not found");
+
+            _tasks.Remove(taskToDelete);
+        }
+
+        public IEnumerable<Task> GetTasksDueBefore(DateTime date)
+        {
+            return _tasks.Where(t => t.DueDate < date).ToList();
+        }
+
+        public IEnumerable<Task> GetCompletedTasks()
+        {
+            return _tasks.Where(t => t.IsCompleted).ToList();
         }
     }
 }
